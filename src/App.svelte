@@ -6,6 +6,92 @@
   import PlanetRepository from "./db/repositories/PlanetRepository";
 
   let planets, moons;
+  let loc, fileData;
+  document.addEventListener("deviceready", onDeviceReady, false);
+
+  function onDeviceReady() {
+    navigator.geolocation.getCurrentPosition(
+      (position) => (loc = position),
+      (error) => console.log(error)
+    );
+    window.requestFileSystem(
+      LocalFileSystem.PERSISTENT,
+      0,
+      function () {
+        var fileName = "dummy.txt";
+        writeFile("", fileName, "This is a dummy text file.").then(() => {
+          readFile("", "dummy.txt").then(data => fileData = data)
+        });
+      },
+      function (err) {
+        console.log({ a, b });
+      }
+    );
+  }
+
+  function readFile(path, filename) {
+    return new Promise((resolve, reject) => {
+      window.resolveLocalFileSystemURL(
+        cordova.file.dataDirectory,
+        function (dirpar) {
+          dirpar.getDirectory(
+            path,
+            {},
+            function (dir) {
+              dir.getFile(
+                filename,
+                {},
+                function (fileEntry) {
+                  fileEntry.file(function (file) {
+                    var reader = new FileReader();
+
+                    reader.onloadend = function () {
+                      resolve(this.result)
+                    };
+
+                    reader.readAsText(file);
+                  }, reject);
+                },
+                reject
+              );
+            },
+            reject
+          );
+        },
+        reject
+      );
+    });
+  }
+
+  function writeFile(path, filename, blob) {
+    return new Promise((resolve, reject) => {
+      window.resolveLocalFileSystemURL(
+        cordova.file.dataDirectory,
+        function (dirpar) {
+          dirpar.getDirectory(
+            path,
+            { create: true },
+            function (dir) {
+              dir.getFile(
+                filename,
+                { create: true, exclusive: false },
+                function (fileEntry) {
+                  fileEntry.createWriter(function (fileWriter) {
+                    fileWriter.onwriteend = resolve;
+                    fileWriter.onerror = reject;
+                    fileWriter.write(blob);
+                  });
+                },
+                reject
+              );
+            },
+            reject
+          );
+        },
+        reject
+      );
+    });
+  }
 
   onMount(async () => {
     await activateDb();
@@ -28,7 +114,20 @@
 
 <h1>Welcome to Orbit/Cordova/Svelte sample app!</h1>
 
+<div>
+  <h2>Geolocation</h2>
+  <p>Your location is:</p>
+  <p>Latitude: {loc ? loc.coords.latitude : "Getting location..."}</p>
+  <p>Longitude: {loc ? loc.coords.longitude : "Getting location..."}</p>
+</div>
+
+<div>
+  <h2>File data:</h2>
+  <p>{fileData || "Writing file to the device's local data folder..."}</p>
+</div>
+
 <form on:submit|preventDefault={saveNewPlanet}>
+  <h2>Create a new planet:</h2>
   <label for="name">Planet name:</label>
   <input type="text" name="name" required />
 
